@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슬기로운 디지털 시민 배지 만들기 - Canvas v2.1</title>
+
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0; padding: 0;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 헤더 */
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* 메인 영역 */
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 30px;
+        }
+
+        /* 배지 영역 */
+        .canvas-section {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            min-height: 600px;
+
+            display: flex;
+            justify-content: center;
+            align-items: center; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .badge-wrapper {
+            width: 500px;
+            height: 500px;
+            position: relative;
+        }
+
+        #badgeCanvas {
+            position: absolute;
+            width: 500px; height: 500px;
+            top: 0; left: 0;
+        }
+
+        #drawCanvas {
+            position: absolute;
+            width: 420px; height: 420px;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            cursor: crosshair;
+            border-radius: 50%;
+        }
+
+        #textLayer {
+            position: absolute;
+            width: 420px; height: 420px;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+        }
+
+        .draggable-text {
+            position: absolute;
+            transform: translate(-50%, -50%);
+            pointer-events: auto;
+            white-space: nowrap;
+            cursor: move;
+        }
+
+        /* 도구 패널 */
+        .tools-section {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            height: fit-content;
+        }
+
+        .tool-group { margin-bottom: 25px; }
+        .tool-group h3 {
+            color: #4a5568;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 6px;
+        }
+
+        /* 색상 */
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+        .color-btn {
+            width: 40px; height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid transparent;
+        }
+        .color-btn.active { border-color: #2d3748; }
+
+        /* 붓 프리뷰 */
+        .brush-preview {
+            height: 60px;
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .brush-dot { border-radius: 50%; }
+
+        .text-input {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .btn-primary { background: linear-gradient(135deg,#4299e1,#3182ce); color:white; }
+        .btn-secondary { background:#f7fafc; border:2px solid #e2e8f0; }
+        .btn-danger { background:#e53e3e; color:white; }
+
+        @media (max-width: 900px) {
+            .main-content { grid-template-columns: 1fr; }
+            .canvas-section { min-height: 500px; }
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <header class="header">
+        <h1>🏆 슬기로운 디지털 시민 배지 만들기</h1>
+    </header>
+
+    <div class="main-content">
+
+        <!-- 배지 영역 -->
+        <section class="canvas-section">
+            <div class="badge-wrapper">
+                <canvas id="badgeCanvas" width="500" height="500"></canvas>
+                <canvas id="drawCanvas"  width="420" height="420"></canvas>
+                <div id="textLayer"></div>
+            </div>
+        </section>
+
+        <!-- 도구 영역 -->
+        <aside class="tools-section">
+
+            <div class="tool-group">
+                <h3>🎨 색상</h3>
+                <div class="color-palette">
+                    <div class="color-btn active" style="background:#4299e1" data-color="#4299e1"></div>
+                    <div class="color-btn" style="background:#48bb78" data-color="#48bb78"></div>
+                    <div class="color-btn" style="background:#ed8936" data-color="#ed8936"></div>
+                    <div class="color-btn" style="background:#f56565" data-color="#f56565"></div>
+                    <div class="color-btn" style="background:#9f7aea" data-color="#9f7aea"></div>
+                    <div class="color-btn" style="background:#38b2ac" data-color="#38b2ac"></div>
+                    <div class="color-btn" style="background:#2d3748" data-color="#2d3748"></div>
+                    <div class="color-btn" style="background:#ffd700" data-color="#ffd700"></div>
+                </div>
+            </div>
+
+            <div class="tool-group">
+                <h3>🖌 굵기</h3>
+                <input type="range" id="brushSize" min="2" max="30" value="6">
+                <div class="brush-preview"><div id="brushPreview" class="brush-dot"></div></div>
+            </div>
+
+            <div class="tool-group">
+                <h3>🧼 지우개</h3>
+                <button id="eraserToggle" class="btn btn-secondary">지우개 켜기</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>✏ 텍스트 추가</h3>
+                <input type="text" id="textInput" class="text-input" placeholder="텍스트 입력">
+                <input type="range" id="fontSizeRange" min="12" max="48" value="24">
+                <button id="addTextBtn" class="btn btn-primary">텍스트 추가</button>
+            </div>
+
+            <div class="tool-group">
+                <h3>🛠 도구</h3>
+                <button id="clearAllBtn" class="btn btn-secondary">전체 지우기</button>
+                <button id="downloadBtn" class="btn btn-primary">이미지 다운로드</button>
+            </div>
+        </aside>
+
+    </div>
+</div>
+
+<script>
+/* ----------------------------------
+   기본 변수
+---------------------------------- */
+const badgeCanvas = document.getElementById("badgeCanvas");
+const badgeCtx = badgeCanvas.getContext("2d");
+
+const drawCanvas  = document.getElementById("drawCanvas");
+const drawCtx     = drawCanvas.getContext("2d");
+
+const textLayer = document.getElementById("textLayer");
+
+let currentColor = "#4299e1";
+let brushSizeValue = 6;
+let isErasing = false;
+
+let isDrawing = false;
+let lastX = 0, lastY = 0;
+
+let texts = [];
+let draggingTextId = null;
+
+/* =====================================================
+   1) 배지 디자인 그리기
+===================================================== */
+function drawBadge() {
+    const cx = 250, cy = 250, outerR = 230;
+    badgeCtx.clearRect(0,0,500,500);
+
+    badgeCtx.save();
+    badgeCtx.shadowColor = "rgba(0,0,0,0.25)";
+    badgeCtx.shadowBlur = 35;
+    badgeCtx.shadowOffsetY = 15;
+
+    const grad = badgeCtx.createLinearGradient(0,0,500,500);
+    grad.addColorStop(0,"#fbbf24");
+    grad.addColorStop(1,"#f59e0b");
+
+    badgeCtx.beginPath();
+    badgeCtx.arc(cx,cy,outerR,0,Math.PI*2);
+    badgeCtx.fillStyle = grad;
+    badgeCtx.fill();
+    badgeCtx.restore();
+
+    badgeCtx.lineCap = "round";
+
+    badgeCtx.lineWidth = 8;
+    badgeCtx.strokeStyle = "#d97706";
+    badgeCtx.beginPath(); badgeCtx.arc(cx,cy,outerR-4,0,Math.PI*2); badgeCtx.stroke();
+
+    badgeCtx.lineWidth = 6;
+    badgeCtx.strokeStyle = "#fef3c7";
+    badgeCtx.beginPath(); badgeCtx.arc(cx,cy,outerR-14,0,Math.PI*2); badgeCtx.stroke();
+
+    badgeCtx.lineWidth = 4;
+    badgeCtx.strokeStyle = "#d97706";
+    badgeCtx.beginPath(); badgeCtx.arc(cx,cy,outerR-22,0,Math.PI*2); badgeCtx.stroke();
+
+    const innerR = outerR - 40;
+
+    badgeCtx.save();
+    badgeCtx.beginPath();
+    badgeCtx.arc(cx,cy,innerR,0,Math.PI*2);
+    badgeCtx.clip();
+
+    const g = badgeCtx.createRadialGradient(cx-40,cy-40,20,cx,cy,innerR);
+    g.addColorStop(0,"white");
+    g.addColorStop(1,"#f8fafc");
+    badgeCtx.fillStyle = g;
+    badgeCtx.fillRect(cx-innerR,cy-innerR,innerR*2,innerR*2);
+    badgeCtx.restore();
+
+    badgeCtx.lineWidth = 3;
+    badgeCtx.strokeStyle = "rgba(255,255,255,0.6)";
+    badgeCtx.beginPath(); badgeCtx.arc(cx,cy,innerR,0,Math.PI*2); badgeCtx.stroke();
+
+    badgeCtx.font = '32px "Segoe UI Emoji"';
+    badgeCtx.textAlign = "center";
+    badgeCtx.textBaseline = "middle";
+    badgeCtx.fillText("🎖️", cx, cy - outerR + 40);
+}
+
+/* =====================================================
+   2) 드로잉 clip 설정
+===================================================== */
+function initDrawCanvas() {
+    drawCtx.clearRect(0,0,420,420);
+
+    const SAFE_R = 187;  // 🔥 절대 침범 방지
+
+    drawCtx.beginPath();
+    drawCtx.arc(210,210,SAFE_R,0,Math.PI*2);
+    drawCtx.clip();
+
+    drawCtx.lineCap = "round";
+    drawCtx.lineJoin = "round";
+}
+
+/* =====================================================
+   3) 드로잉 기능
+===================================================== */
+function getCoords(e) {
+    const rect = drawCanvas.getBoundingClientRect();
+    const scaleX = drawCanvas.width / rect.width;
+    const scaleY = drawCanvas.height / rect.height;
+
+    let x,y;
+    if (e.touches?.[0]) {
+        x = (e.touches[0].clientX - rect.left) * scaleX;
+        y = (e.touches[0].clientY - rect.top) * scaleY;
+    } else {
+        x = (e.clientX - rect.left) * scaleX;
+        y = (e.clientY - rect.top) * scaleY;
+    }
+    return {x,y};
+}
+
+function startDrawing(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const {x,y} = getCoords(e);
+    lastX = x; lastY = y;
+}
+
+function draw(e) {
+    if (!isDrawing) return;
+
+    const {x,y} = getCoords(e);
+
+    drawCtx.lineWidth = brushSizeValue;
+    drawCtx.globalCompositeOperation = isErasing ? "destination-out" : "source-over";
+    drawCtx.strokeStyle = isErasing ? "rgba(0,0,0,1)" : currentColor;
+
+    drawCtx.beginPath();
+    drawCtx.moveTo(lastX,lastY);
+    drawCtx.lineTo(x,y);
+    drawCtx.stroke();
+
+    lastX = x; lastY = y;
+}
+
+function stopDrawing() {
+    isDrawing = false;
+}
+
+/* =====================================================
+   4) 텍스트 추가 + 드래그
+===================================================== */
+function addText() {
+    const txt = document.getElementById("textInput").value.trim();
+    if (!txt) return;
+
+    const size = Number(document.getElementById("fontSizeRange").value);
+    const id = Date.now().toString();
+
+    const obj = {
+        id, text: txt, x: 210, y: 280, size,
+        color: currentColor, element: null
+    };
+
+    texts.push(obj);
+    createTextElement(obj);
+}
+
+function createTextElement(t) {
+    const el = document.createElement("div");
+    el.className = "draggable-text";
+    el.dataset.id = t.id;
+    el.textContent = t.text;
+
+    el.style.fontSize = t.size + "px";
+    el.style.color = t.color;
+
+    el.style.left = (t.x / 420 * 100) + "%";
+    el.style.top  = (t.y / 420 * 100) + "%";
+
+    el.addEventListener("mousedown", startDragMouse);
+    el.addEventListener("touchstart", startDragTouch, {passive:false});
+
+    textLayer.appendChild(el);
+    t.element = el;
+}
+
+function startDragMouse(e) {
+    e.preventDefault();
+    draggingTextId = e.target.dataset.id;
+
+    const {x,y} = getCoords(e);
+    const t = texts.find(a => a.id === draggingTextId);
+    t.offX = t.x - x;
+    t.offY = t.y - y;
+
+    window.addEventListener("mousemove", dragMouse);
+    window.addEventListener("mouseup", stopDrag);
+}
+
+function dragMouse(e) {
+    const {x,y} = getCoords(e);
+    updateTextPosition(x,y);
+}
+
+function startDragTouch(e) {
+    e.preventDefault();
+    draggingTextId = e.target.dataset.id;
+
+    const {x,y} = getCoords(e);
+    const t = texts.find(a => a.id === draggingTextId);
+    t.offX = t.x - x;
+    t.offY = t.y - y;
+
+    window.addEventListener("touchmove", dragTouch, {passive:false});
+    window.addEventListener("touchend", stopDrag);
+}
+
+function dragTouch(e) {
+    const {x,y} = getCoords(e);
+    updateTextPosition(x,y);
+}
+
+function updateTextPosition(x,y){
+    const t = texts.find(a=>a.id===draggingTextId);
+    if (!t) return;
+
+    t.x = x + t.offX;
+    t.y = y + t.offY;
+
+    // 원 내부 이동 제한
+    const dx = t.x - 210;
+    const dy = t.y - 210;
+    if (dx*dx + dy*dy > 185*185) return;
+
+    t.element.style.left = (t.x / 420 * 100) + "%";
+    t.element.style.top  = (t.y / 420 * 100) + "%";
+}
+
+function stopDrag() {
+    draggingTextId = null;
+    window.removeEventListener("mousemove", dragMouse);
+    window.removeEventListener("mouseup", stopDrag);
+    window.removeEventListener("touchmove", dragTouch);
+    window.removeEventListener("touchend", stopDrag);
+}
+
+/* =====================================================
+   5) 전체 지우기
+===================================================== */
+function clearAll() {
+    if (!confirm("정말 삭제할까요?")) return;
+
+    initDrawCanvas();
+    texts.forEach(t => t.element.remove());
+    texts = [];
+}
+
+/* =====================================================
+   6) PNG 저장
+===================================================== */
+function downloadImage() {
+    const final = document.createElement("canvas");
+    final.width = 500; final.height = 500;
+    const f = final.getContext("2d");
+
+    f.drawImage(badgeCanvas,0,0);
+
+    f.save();
+    f.beginPath();
+    f.arc(250,250,187,0,Math.PI*2);
+    f.clip();
+    f.drawImage(drawCanvas,40,40);
+    f.restore();
+
+    f.textAlign = "center";
+    f.textBaseline = "middle";
+
+    texts.forEach(t=>{
+        f.font = `${t.size}px Pretendard`;
+        f.fillStyle = t.color;
+        f.fillText(t.text, 40+t.x, 40+t.y);
+    });
+
+    const link = document.createElement("a");
+    link.download = "디지털시민배지.png";
+    link.href = final.toDataURL("image/png");
+    link.click();
+}
+
+/* =====================================================
+   초기 실행 + 이벤트 등록
+===================================================== */
+window.onload = () => {
+
+    drawBadge();
+    initDrawCanvas();
+    updateBrushPreview();
+
+    document.getElementById("brushSize").addEventListener("input", e=>{
+        brushSizeValue = Number(e.target.value);
+        updateBrushPreview();
+    });
+
+    function updateBrushPreview() {
+        const dot = document.getElementById("brushPreview");
+        const size = brushSizeValue * 2;
+        dot.style.width = size+"px";
+        dot.style.height = size+"px";
+        dot.style.background = isErasing ? "#fff" : currentColor;
+        dot.style.border = isErasing ? "2px solid black" : "none";
+    }
+
+    document.querySelectorAll(".color-btn").forEach(btn=>{
+        btn.addEventListener("click",()=>{
+            document.querySelector(".color-btn.active")?.classList.remove("active");
+            btn.classList.add("active");
+            currentColor = btn.dataset.color;
+
+            isErasing = false;
+            document.getElementById("eraserToggle").textContent = "지우개 켜기";
+            document.getElementById("eraserToggle").className = "btn btn-secondary";
+            updateBrushPreview();
+        });
+    });
+
+    document.getElementById("eraserToggle").addEventListener("click",()=>{
+        isErasing = !isErasing;
+
+        if (isErasing){
+            eraserToggle.textContent = "지우개 끄기";
+            eraserToggle.className   = "btn btn-danger";
+        } else {
+            eraserToggle.textContent = "지우개 켜기";
+            eraserToggle.className   = "btn btn-secondary";
+        }
+        updateBrushPreview();
+    });
+
+    document.getElementById("addTextBtn").addEventListener("click", addText);
+    document.getElementById("clearAllBtn").addEventListener("click", clearAll);
+    document.getElementById("downloadBtn").addEventListener("click", downloadImage);
+
+    drawCanvas.addEventListener("mousedown", startDrawing);
+    drawCanvas.addEventListener("mousemove", draw);
+    window.addEventListener("mouseup", stopDrawing);
+
+    drawCanvas.addEventListener("touchstart", startDrawing, {passive:false});
+    drawCanvas.addEventListener("touchmove", draw, {passive:false});
+    drawCanvas.addEventListener("touchend", stopDrawing);
+};
+</script>
+
+</body>
+</html>
